@@ -7,7 +7,7 @@ Unreal Engine 4 Plugin Implementation of the Windows API for the PS5 DualSense c
 
 > :exclamation: ​Warning: The current release state is still a preview release. The library may not work as intended!
 
-## Using the API
+## Using the Plugin
 
 1. Download the latest release found at the [Release Page](https://github.com/Ohjurot/DualSense-Windows/releases)
 2. Unzip the archive to your computer

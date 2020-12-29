@@ -1,7 +1,9 @@
 # UE4 Port of DualSense on Windows [Ohjurot/DualSense-Windows](https://github.com/Ohjurot/DualSense-Windows)
 ![](https://raw.githubusercontent.com/Ohjurot/DualSense-Windows/main/Doc/GitHub_readme/header.png)
 
-Windows API for the PS5 DualSense controller.  Written in C++ for Unreal Engine projects. This API will help you using the DualSense controller in your Windows Unreal Engine 4 Applications / Projects.
+Unreal Engine 4 Plugin Implementation of the Windows API for the PS5 DualSense controller.  Written in C++ for Unreal Engine projects. This API will help you using the DualSense controller in your Windows Unreal Engine 4 Applications / Projects.
+
+> :exclamation: ​Warning: Do not use this code in production / release. This is strictly for testing Dualsense controller implementation designs with your Unreal Engine projects. Releasing projects with this plugin will most likely get you a lot of hot water with Sony. It's not worth it. When you are ready for release, contact your Sony representative for their Dualsense library! The code supplied is supplied as is and no responsibility is taken on my part (KITATUS) or any of the contributors to this project if you get in trouble for using this plugin.
 
 > :exclamation: ​Warning: The current release state is still a preview release. The library may not work as intended!
 

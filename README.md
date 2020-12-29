@@ -1,4 +1,4 @@
-# UE4 Port of DualSense on Windows [UE4 Port of Ohjurot/DualSense-Windows](https://github.com/Ohjurot/DualSense-Windows)
+# UE4 Port of DualSense on Windows [Ohjurot/DualSense-Windows](https://github.com/Ohjurot/DualSense-Windows)
 ![](https://raw.githubusercontent.com/Ohjurot/DualSense-Windows/main/Doc/GitHub_readme/header.png)
 
 Windows API for the PS5 DualSense controller.  Written in C++ for Unreal Engine projects. This API will help you using the DualSense controller in your Windows Unreal Engine 4 Applications / Projects.

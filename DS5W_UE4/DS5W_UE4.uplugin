@@ -1,0 +1,24 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "DS5W_UE4",
+	"Description": "",
+	"Category": "Input",
+	"CreatedBy": "KITATUS",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "DS5W_UE4",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}

@@ -193,8 +193,8 @@ void FDS5WInterface::SendControllerEvents()
 			CurrentStates[DS5WToXboxControllerMapping[7]] = !!(DS5WState.buttonsA & DS5W_ISTATE_BTN_A_MENU);
 			CurrentStates[DS5WToXboxControllerMapping[8]] = !!(DS5WState.buttonsA & DS5W_ISTATE_BTN_A_LEFT_STICK);
 			CurrentStates[DS5WToXboxControllerMapping[9]] = !!(DS5WState.buttonsA & DS5W_ISTATE_BTN_A_RIGHT_STICK);
-			CurrentStates[DS5WToXboxControllerMapping[10]] = !!(DS5WState.buttonsA > DS5W_ISTATE_BTN_A_LEFT_TRIGGER);
-			CurrentStates[DS5WToXboxControllerMapping[11]] = !!(DS5WState.buttonsA > DS5W_ISTATE_BTN_A_RIGHT_TRIGGER);
+			CurrentStates[DS5WToXboxControllerMapping[10]] = !!(DS5WState.leftTrigger > DS5W_ISTATE_BTN_A_LEFT_TRIGGER);
+			CurrentStates[DS5WToXboxControllerMapping[11]] = !!(DS5WState.rightTrigger > DS5W_ISTATE_BTN_A_RIGHT_TRIGGER);
 			CurrentStates[DS5WToXboxControllerMapping[12]] = !!(DS5WState.buttonsAndDpad & DS5W_ISTATE_DPAD_UP);
 			CurrentStates[DS5WToXboxControllerMapping[13]] = !!(DS5WState.buttonsAndDpad & DS5W_ISTATE_DPAD_DOWN);
 			CurrentStates[DS5WToXboxControllerMapping[14]] = !!(DS5WState.buttonsAndDpad & DS5W_ISTATE_DPAD_LEFT);

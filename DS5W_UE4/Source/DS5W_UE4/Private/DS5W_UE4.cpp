@@ -4,6 +4,18 @@
 #include "IDS5W_UE4.h"
 #include "DS5WInterface.h"
 
+#define LOCTEXT_NAMESPACE "DualSenseModule"
+
+static FName ModuleName = FName("DualSense");
+
+// Setup gyroscope
+const FKey FDS5WKey::DS5W_GyroAxis_X("DS5W_GyroAxis_X");
+const FKey FDS5WKey::DS5W_GyroAxis_Y("DS5W_GyroAxis_Y");
+
+// Setup gyroscope names
+const FDS5WKeyNames::Type FDS5WKeyNames::DS5W_GyroAxis_X("DS5W_GyroAxis_X");
+const FDS5WKeyNames::Type FDS5WKeyNames::DS5W_GyroAxis_Y("DS5W_GyroAxis_Y");
+
 class FDS5W_UE4 : public IDS5W_UE4
 {
     /** Implements the rest of the IInputDeviceModule interface **/
@@ -30,6 +42,13 @@ void FDS5W_UE4::StartupModule()
 {
     // This code will execute after your module is loaded into memory (but after global variables are initialized, of course.)
     // Custom module-specific init can go here.
+		
+		// Register the FKeys
+		EKeys::AddMenuCategoryDisplayInfo(ModuleName, LOCTEXT("DualSenseSubCategory", "DualSense"), TEXT("GraphEditor.PadEvent_16x"));
+
+		// Gyroscope
+		EKeys::AddKey(FKeyDetails(FDS5WKey::DS5W_GyroAxis_X, LOCTEXT("DS5W_GyroAxis_X", "DualSense Gyroscope X"), FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, ModuleName));
+		EKeys::AddKey(FKeyDetails(FDS5WKey::DS5W_GyroAxis_Y, LOCTEXT("DS5W_GyroAxis_Y", "DualSense Gyroscope Y"), FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, ModuleName));
 
     UE_LOG(LogTemp, Warning, TEXT("DS5W_UE4 initiated!"));
 

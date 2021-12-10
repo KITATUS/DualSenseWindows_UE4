@@ -1,5 +1,6 @@
 // Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
 
+#include "IDS5W_UE4.h"
 #include "DS5WInterface.h"
 #include "HAL/PlatformTime.h"
 #include "Math/UnrealMathUtility.h"
@@ -285,8 +286,8 @@ void FDS5WInterface::SendControllerEvents()
 			ControllerState.GyroscopeAxises.Update(ControllerState.Gyroscope);
 
 			FVector2D GyroAxisLastDelta = ControllerState.GyroscopeAxises.GetLastDelta();
-			OnControllerAnalog(FName("GyroAxisX"), GyroAxisLastDelta.X, GyroAxisLastDelta.X, ControllerState.GyroAxisLastDelta.X, DS5W_GYROSCOPE_THRESHOLD);
-			OnControllerAnalog(FName("GyroAxisY"), GyroAxisLastDelta.Y, GyroAxisLastDelta.Y, ControllerState.GyroAxisLastDelta.Y, DS5W_GYROSCOPE_THRESHOLD);
+			OnControllerAnalog(FDS5WKeyNames::DS5W_GyroAxis_X, GyroAxisLastDelta.X, GyroAxisLastDelta.X, ControllerState.GyroAxisLastDelta.X, DS5W_GYROSCOPE_THRESHOLD);
+			OnControllerAnalog(FDS5WKeyNames::DS5W_GyroAxis_Y, GyroAxisLastDelta.Y, GyroAxisLastDelta.Y, ControllerState.GyroAxisLastDelta.Y, DS5W_GYROSCOPE_THRESHOLD);
 			ControllerState.GyroAxisLastDelta = GyroAxisLastDelta;
 
 			OnControllerAnalog(FGamepadKeyNames::LeftTriggerAnalog, Gamepad.leftTrigger, Gamepad.leftTrigger / 255.f, ControllerState.LeftTriggerAnalog, DS5W_TRIGGER_THRESHOLD);

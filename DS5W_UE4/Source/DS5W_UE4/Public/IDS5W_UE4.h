@@ -4,6 +4,20 @@
 #include "IInputDeviceModule.h"
 #include "InputCoreTypes.h"
 
+struct FDS5WKey {
+	/* Gyroscope */
+	static const FKey DS5W_GyroAxis_X;
+	static const FKey DS5W_GyroAxis_Y;
+};
+
+struct FDS5WKeyNames {
+	typedef FName Type;
+
+	/* Gyroscope axises */
+	static const FName DS5W_GyroAxis_X;
+	static const FName DS5W_GyroAxis_Y;
+};
+
 class IDS5W_UE4 : public IInputDeviceModule
 {
 public:

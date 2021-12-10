@@ -12,8 +12,10 @@ public class DS5W_UE4 : ModuleRules
 
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicAdditionalLibraries.Add("C:/Program Files (x86)/Windows Kits/10/Lib/10.0.17134.0/um/x64/hid.lib");
 		PublicDefinitions.Add("DS5W_USE_LIB");
+		PublicSystemLibraries.AddRange(new string[] {
+					"hid.lib"
+			});
 
 		PrivateIncludePaths.AddRange(
 			new string[] {

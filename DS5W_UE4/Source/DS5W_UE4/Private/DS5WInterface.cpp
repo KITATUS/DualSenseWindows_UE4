@@ -48,6 +48,11 @@ void FDS5WInterface::FGyroscopeSensor::Reset() {
 
 FDS5WInterface::FDS5WInterface(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) : MessageHandler(InMessageHandler)
 {
+	con._internal.connected = false;
+	con._internal.connection = DS5W::DeviceConnection::USB;
+	con._internal.deviceHandle = nullptr;
+	con._internal.devicePath[0] = 0x0;
+
 	for (int32 ControllerIndex = 0; ControllerIndex < MAX_NUM_DS5W_CONTROLLERS; ++ControllerIndex)
 	{
 		FControllerState& ControllerState = ControllerStates[ControllerIndex];
@@ -129,6 +134,7 @@ FDS5WInterface::FDS5WInterface(const TSharedRef<FGenericApplicationMessageHandle
 	switch (DS5W::enumDevices(infos, 16, &controllersCount)) 
 	{
 		case DS5W_OK:
+			break;
 		case DS5W_E_INSUFFICIENT_BUFFER:
 			UE_LOG(LogTemp, Error, TEXT("FDS5WInterface::FDS5WInterface: Insuffienct Buffer."));
 			break;

@@ -3,7 +3,7 @@
 	https://github.com/Ohjurot/DualSense-Windows
 
 	Contributors of this file:
-	11.2020 Ludwig Füchsl
+	11.2020 Ludwig FÃ¼chsl
 
 	Licensed under the MIT License (To be found in repository root directory)
 */
@@ -264,7 +264,7 @@ DS5W_API DS5W_ReturnValue DS5W::getDeviceInputState(DS5W::DeviceContext* ptrCont
 	}
 
 	// Check for connection
-	if (!ptrContext->_internal.connected) {
+	if (!ptrContext->_internal.connected || !ptrContext->_internal.deviceHandle) {
 		return DS5W_E_DEVICE_REMOVED;
 	}
 
@@ -288,6 +288,7 @@ DS5W_API DS5W_ReturnValue DS5W::getDeviceInputState(DS5W::DeviceContext* ptrCont
 	if (!ReadFile(ptrContext->_internal.deviceHandle, ptrContext->_internal.hidBuffer, inputReportLength, NULL, NULL)) {
 		// Close handle and set error state
 		CloseHandle(ptrContext->_internal.deviceHandle);
+
 		ptrContext->_internal.deviceHandle = NULL;
 		ptrContext->_internal.connected = false;
 

@@ -2,6 +2,7 @@
 
 #include "DS5WInterface.h"
 #include "HAL/PlatformTime.h"
+#include "Math/UnrealMathUtility.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/ConfigCacheIni.h"
 #include "..\Public\DS5WInterface.h"
@@ -9,6 +10,41 @@
 #define DS5W_LEFT_THUMB_DEADZONE  30
 #define DS5W_RIGHT_THUMB_DEADZONE 30
 #define DS5W_TRIGGER_THRESHOLD    30
+#define DS5W_GYROSCOPE_THRESHOLD  0
+
+// There are gyroscope axices sensitivity params. It should be configurable by game options
+static float gyroscope_axis_x_sens = 1.0f;
+static float gyroscope_axis_y_sens = 1.0f;
+// Gyroscope's z axis is used for quick player's rotation around Y axis, so, it should have much bigger sensitivity than others
+static float gyroscope_axis_z_sens = 3.0f;
+
+void FDS5WInterface::FGyroscopeSensor::Init(int ID) {
+	LastAngle.Set(0.f, 0.f);
+	LastDelta.Set(0.f, 0.f);
+
+	Id = ID;
+}
+
+void FDS5WInterface::FGyroscopeSensor::Update(FVector GyroscopeValue) {
+	LastDelta.Set(0.f, 0.f);
+
+	FVector2D Angle;
+	Angle.Set(-(GyroscopeValue.Y * gyroscope_axis_y_sens + GyroscopeValue.Z * gyroscope_axis_z_sens), -GyroscopeValue.X * gyroscope_axis_x_sens);
+	
+	if (FMath::IsNearlyEqual(Angle.X, LastAngle.X) && FMath::IsNearlyEqual(Angle.Y, LastAngle.Y))
+	{
+		return;
+	}
+
+	LastDelta = Angle - LastAngle;
+	LastAngle = Angle;
+}
+
+void FDS5WInterface::FGyroscopeSensor::Reset() {
+	Update(FVector());
+	LastDelta.Set(0.f, 0.f);
+}
+
 
 FDS5WInterface::FDS5WInterface(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) : MessageHandler(InMessageHandler)
 {
@@ -18,6 +54,7 @@ FDS5WInterface::FDS5WInterface(const TSharedRef<FGenericApplicationMessageHandle
 		FMemory::Memzero(&ControllerState, sizeof(FControllerState));
 
 		ControllerState.ControllerId = ControllerIndex;
+		ControllerState.GyroscopeAxises.Init(ControllerState.ControllerId);
 	}
 
 	bIsGamepadAttached = true;
@@ -235,6 +272,16 @@ void FDS5WInterface::SendControllerEvents()
 			ControllerState.LeftYAnalog = Gamepad.leftStick.y;
 			ControllerState.RightXAnalog = Gamepad.rightStick.x;
 			ControllerState.RightYAnalog = Gamepad.rightStick.y;
+			
+			ControllerState.Accelerometer = FVector(Gamepad.accelerometer.x, Gamepad.accelerometer.y, Gamepad.accelerometer.z);
+			ControllerState.Gyroscope = FVector(Gamepad.gyroscope.x, Gamepad.gyroscope.y, Gamepad.gyroscope.z);
+
+			ControllerState.GyroscopeAxises.Update(ControllerState.Gyroscope);
+
+			FVector2D GyroAxisLastDelta = ControllerState.GyroscopeAxises.GetLastDelta();
+			OnControllerAnalog(FName("GyroAxisX"), GyroAxisLastDelta.X, GyroAxisLastDelta.X, ControllerState.GyroAxisLastDelta.X, DS5W_GYROSCOPE_THRESHOLD);
+			OnControllerAnalog(FName("GyroAxisY"), GyroAxisLastDelta.Y, GyroAxisLastDelta.Y, ControllerState.GyroAxisLastDelta.Y, DS5W_GYROSCOPE_THRESHOLD);
+			ControllerState.GyroAxisLastDelta = GyroAxisLastDelta;
 
 			OnControllerAnalog(FGamepadKeyNames::LeftTriggerAnalog, Gamepad.leftTrigger, Gamepad.leftTrigger / 255.f, ControllerState.LeftTriggerAnalog, DS5W_TRIGGER_THRESHOLD);
 			OnControllerAnalog(FGamepadKeyNames::RightTriggerAnalog, Gamepad.rightTrigger, Gamepad.rightTrigger / 255.f, ControllerState.RightTriggerAnalog, DS5W_TRIGGER_THRESHOLD);

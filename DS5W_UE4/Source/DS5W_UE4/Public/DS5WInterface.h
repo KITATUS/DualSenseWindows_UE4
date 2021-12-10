@@ -56,6 +56,21 @@ private:
 		uint8 Brightness = 0; //Maps to DS5W:LedBrightness. 0 = Low, 1 = Medium, 2 = High
 	};
 
+	struct FGyroscopeSensor {
+	public:
+		void Init(int ID);
+		void Update(FVector Angle);
+		void Reset();
+
+		inline FVector2D& GetLastDelta() { return (LastDelta); }
+
+	private:
+		int Id;
+
+		FVector2D LastAngle;
+		FVector2D LastDelta;
+	};
+
 	struct FControllerState
 	{
 		/** Last frame's button states, so we only send events on edges */
@@ -119,6 +134,16 @@ private:
 
 		float LastLargeValue;
 		float LastSmallValue;
+
+		/* Accelerometer */
+		FVector Accelerometer;
+
+		/* Gyroscope */
+		FVector Gyroscope;
+
+		/* Gyroscope axises */
+		FGyroscopeSensor GyroscopeAxises;
+		FVector2D GyroAxisLastDelta;
 	};
 
 	/** If we've been notified by the system that the controller state may have changed */

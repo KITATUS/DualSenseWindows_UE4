@@ -1,9 +1,10 @@
 // Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
 
-#include "IDS5W_UE4.h"
 #include "DS5WInterface.h"
+#include "IDS5W_UE4.h"
 #include "HAL/PlatformTime.h"
 #include "Math/UnrealMathUtility.h"
+#include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/ConfigCacheIni.h"
 #include "..\Public\DS5WInterface.h"
@@ -11,7 +12,7 @@
 #define DS5W_LEFT_THUMB_DEADZONE  30
 #define DS5W_RIGHT_THUMB_DEADZONE 30
 #define DS5W_TRIGGER_THRESHOLD    30
-#define DS5W_GYROSCOPE_THRESHOLD  0
+#define DS5W_GYROSCOPE_THRESHOLD  0.f
 
 // There are gyroscope axices sensitivity params. It should be configurable by game options
 static float gyroscope_axis_x_sens = 1.0f;
@@ -23,16 +24,26 @@ void FDS5WInterface::FGyroscopeSensor::Init(int ID) {
 	LastAngle.Set(0.f, 0.f);
 	LastDelta.Set(0.f, 0.f);
 
+	SmoothingThreshold = 100.f;
+	TighteningThreshold = 100.f;
+
+	LastTime = FPlatformTime::Seconds();
+
+	InputBufferSize = 10;
+	InputBuffer.Init(FVector2D(), InputBufferSize);
+
 	Id = ID;
 }
 
 void FDS5WInterface::FGyroscopeSensor::Update(FVector GyroscopeValue) {
 	LastDelta.Set(0.f, 0.f);
 
+	//LastDelta = GyroCameraLocal(GyroscopeValue);
+
 	FVector2D Angle;
 	Angle.Set(-(GyroscopeValue.Y * gyroscope_axis_y_sens + GyroscopeValue.Z * gyroscope_axis_z_sens), -GyroscopeValue.X * gyroscope_axis_x_sens);
 	
-	if (FMath::IsNearlyEqual(Angle.X, LastAngle.X) && FMath::IsNearlyEqual(Angle.Y, LastAngle.Y))
+	if (FMath::IsNearlyEqual(Angle.X, LastAngle.X, 0.0001f) && FMath::IsNearlyEqual(Angle.Y, LastAngle.Y, 0.0001f))
 	{
 		return;
 	}
@@ -41,11 +52,63 @@ void FDS5WInterface::FGyroscopeSensor::Update(FVector GyroscopeValue) {
 	LastAngle = Angle;
 }
 
-void FDS5WInterface::FGyroscopeSensor::Reset() {
-	Update(FVector());
+void FDS5WInterface::FGyroscopeSensor::Reset()
+{
+	LastAngle.Set(0.f, 0.f);
 	LastDelta.Set(0.f, 0.f);
+
+	LastTime = FPlatformTime::Seconds();
 }
 
+FVector2D FDS5WInterface::FGyroscopeSensor::GyroCameraLocal(FVector gyro) {
+	FVector2D yawAxes = FVector2D(gyro.Y, gyro.Z);
+	
+	float yawDirection;
+	if (abs(yawAxes.X) > abs(yawAxes.Y)) {
+		yawDirection = signum(yawAxes.X);
+	}
+	else {
+		yawDirection = signum(yawAxes.Y);
+	}
+
+	float DeltaSeconds = FApp::GetDeltaTime();
+	FVector2D Camera;
+	Camera.X = yawAxes.Size() * yawDirection * gyroscope_axis_x_sens * DeltaSeconds;
+	Camera.Y = gyro.X * gyroscope_axis_y_sens * DeltaSeconds;
+
+	return Camera;
+}
+
+
+FVector2D FDS5WInterface::FGyroscopeSensor::GyroCameraWorld(FVector gyro, FVector gravNorm) {
+	float DeltaSeconds = FApp::GetDeltaTime();
+	// some info about the controller's orientation that we'll use to smooth over boundaries
+	float flatness = abs(gravNorm.Y); // 1 when controller is flat
+	float upness = abs(gravNorm.Z); // 1 when controller is upright
+	float sideReduction = FMath::Clamp((FMath::Max(flatness, upness) - 0.125f) / 0.125f, 0.f, 1.f);
+
+	// world space yaw velocity (negative because gravity points down)
+	FVector2D Camera;
+
+	Camera.X = - FVector::DotProduct(gyro, gravNorm) * gyroscope_axis_x_sens * DeltaSeconds;
+
+	// project pitch axis onto gravity plane
+	float gravDotPitchAxis = gravNorm.X; // shortcut for (1, 0, 0).Dot(gravNorm)
+	FVector pitchVector = FVector(1.f, 0.f, 0.f) - gravNorm * gravDotPitchAxis;
+	// that's all it took!
+
+	// normalize. it'll be zero if pitch and gravity are parallel, which we ignore
+	if (!pitchVector.IsZero()) {
+		pitchVector.Normalize();
+		// camera pitch velocity just like yaw velocity at the beginning
+		// (but squish to 0 when controller is on its side)
+		
+		Camera.Y = sideReduction * FVector::DotProduct(gyro, pitchVector)
+			* gyroscope_axis_y_sens * DeltaSeconds;
+	}
+
+	return Camera;
+}
 
 FDS5WInterface::FDS5WInterface(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) : MessageHandler(InMessageHandler)
 {
@@ -60,6 +123,12 @@ FDS5WInterface::FDS5WInterface(const TSharedRef<FGenericApplicationMessageHandle
 		FMemory::Memzero(&ControllerState, sizeof(FControllerState));
 
 		ControllerState.ControllerId = ControllerIndex;
+		ControllerState.CueMotionReset = false;
+		ControllerState.UseContinuousCalibration = false;
+
+		ControllerState.DeltaTime = 0.0;
+		ControllerState.LastMeasurementTime = FPlatformTime::Seconds();
+
 		ControllerState.GyroscopeAxises.Init(ControllerState.ControllerId);
 	}
 
@@ -204,6 +273,7 @@ void FDS5WInterface::SendControllerEvents()
 		FInputDeviceScope InputScope(this, DS5WInterfaceName, ControllerIndex, DS5WControllerIdentifier);
 
 		FControllerState& ControllerState = ControllerStates[ControllerIndex];
+		GamepadMotion& MotionState = MotionStates[ControllerIndex];
 
 		const bool bWasConnected = bWereConnected[ControllerIndex];
 
@@ -280,20 +350,55 @@ void FDS5WInterface::SendControllerEvents()
 			ControllerState.RightXAnalog = Gamepad.rightStick.x;
 			ControllerState.RightYAnalog = Gamepad.rightStick.y;
 			
-			ControllerState.Accelerometer = FVector(Gamepad.accelerometer.x, Gamepad.accelerometer.y, Gamepad.accelerometer.z);
-			ControllerState.Gyroscope = FVector(Gamepad.gyroscope.x, Gamepad.gyroscope.y, Gamepad.gyroscope.z);
-
-			ControllerState.GyroscopeAxises.Update(ControllerState.Gyroscope);
-
-			FVector2D GyroAxisLastDelta = ControllerState.GyroscopeAxises.GetLastDelta();
-			OnControllerAnalog(FDS5WKeyNames::DS5W_GyroAxis_X, GyroAxisLastDelta.X, GyroAxisLastDelta.X, ControllerState.GyroAxisLastDelta.X, DS5W_GYROSCOPE_THRESHOLD);
-			OnControllerAnalog(FDS5WKeyNames::DS5W_GyroAxis_Y, GyroAxisLastDelta.Y, GyroAxisLastDelta.Y, ControllerState.GyroAxisLastDelta.Y, DS5W_GYROSCOPE_THRESHOLD);
-			ControllerState.GyroAxisLastDelta = GyroAxisLastDelta;
-
 			OnControllerAnalog(FGamepadKeyNames::LeftTriggerAnalog, Gamepad.leftTrigger, Gamepad.leftTrigger / 255.f, ControllerState.LeftTriggerAnalog, DS5W_TRIGGER_THRESHOLD);
 			OnControllerAnalog(FGamepadKeyNames::RightTriggerAnalog, Gamepad.rightTrigger, Gamepad.rightTrigger / 255.f, ControllerState.RightTriggerAnalog, DS5W_TRIGGER_THRESHOLD);
 
+
 			const double CurrentTime = FPlatformTime::Seconds();
+
+			ControllerState.DeltaTime = CurrentTime - ControllerState.LastMeasurementTime;
+			ControllerState.LastMeasurementTime = CurrentTime;
+
+			if (ControllerState.CueMotionReset)
+			{
+				ControllerState.CueMotionReset = false;
+				MotionState.Reset();
+			}
+			if (MotionState.GetCalibrationMode() == GamepadMotionHelpers::CalibrationMode::Manual)
+			{
+				if (ControllerState.UseContinuousCalibration)
+				{
+					MotionState.StartContinuousCalibration();
+				}
+				else
+				{
+					MotionState.PauseContinuousCalibration();
+				}
+			}
+
+			ControllerState.Accelerometer = FVector(Gamepad.imuState.accelX, Gamepad.imuState.accelY, Gamepad.imuState.accelZ);
+			ControllerState.Gyroscope = FVector(Gamepad.imuState.gyroX, Gamepad.imuState.gyroY, Gamepad.imuState.gyroZ);
+
+			push_sensor_samples(MotionState, ControllerState);
+			get_calibrated_gyro(ControllerState, MotionState);
+			get_motion_state(ControllerState, MotionState);
+
+			FRotator Orientation = ControllerState.Orientation.Rotator();
+			FVector ControllerOrientation(Orientation.Roll, Orientation.Pitch, Orientation.Yaw);
+
+			/*UE_LOG(LogTemp, Warning, TEXT("[%d]: Orientation (%f;%f;%f), Acceleration (%f;%f;%f), Gravity (%f;%f;%f)"), ControllerState.ControllerId,
+				Orientation.Roll, Orientation.Pitch, Orientation.Yaw,
+				ControllerState.Acceleration.X, ControllerState.Acceleration.Y, ControllerState.Acceleration.Z,
+				ControllerState.Gravity.X, ControllerState.Gravity.Y, ControllerState.Gravity.Z);*/
+			
+			ControllerState.GyroscopeAxises.Update(ControllerOrientation);
+
+			//if (ControllerIndex == 0) {
+				FVector2D GyroAxisLastDelta = ControllerState.GyroscopeAxises.GetLastDelta();
+				OnControllerAnalog(FDS5WKeyNames::DS5W_GyroAxis_X, GyroAxisLastDelta.X, GyroAxisLastDelta.X, ControllerState.GyroAxisLastDelta.X, DS5W_GYROSCOPE_THRESHOLD);
+				OnControllerAnalog(FDS5WKeyNames::DS5W_GyroAxis_Y, GyroAxisLastDelta.Y, GyroAxisLastDelta.Y, ControllerState.GyroAxisLastDelta.Y, DS5W_GYROSCOPE_THRESHOLD);
+				ControllerState.GyroAxisLastDelta = GyroAxisLastDelta;
+			//}
 
 			// For each button check against the previous state and send the correct message if any
 			for (int32 ButtonIndex = 0; ButtonIndex < MAX_NUM_CONTROLLER_BUTTONS; ++ButtonIndex)

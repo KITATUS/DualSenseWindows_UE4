@@ -13,6 +13,8 @@
 #include "DualSenseWindows/Helpers.h"
 #include "DualSenseWindows/IO.h"
 
+#include "GamepadMotion.hpp"
+
 /** Max number of controllers. */
 #define MAX_NUM_DS5W_CONTROLLERS 4
 
@@ -65,10 +67,83 @@ private:
 		inline FVector2D& GetLastDelta() { return (LastDelta); }
 
 	private:
+		float SmoothingThreshold = 100.f;
+		float TighteningThreshold = 100.f;
+
 		int Id;
 
+		double LastTime;
 		FVector2D LastAngle;
 		FVector2D LastDelta;
+		FVector LastGyroValue;
+
+		FVector GravityVector;
+
+		template <typename T> inline constexpr
+			int signum(T x, std::false_type is_signed) {
+			return T(0) < x;
+		}
+
+		template <typename T> inline constexpr
+			int signum(T x, std::true_type is_signed) {
+			return (T(0) < x) - (x < T(0));
+		}
+
+		template <typename T> inline constexpr
+			int signum(T x) {
+			return signum(x, std::is_signed<T>());
+		}
+
+		FVector2D GyroCameraLocal(FVector gyro);
+		FVector2D GyroCameraWorld(FVector gyro, FVector gravNorm);
+
+		FVector2D GetDirectInput(FVector2D input) {
+			return input;
+		}
+
+		// smoothing buffer
+		TArray<FVector2D>::SizeType InputBufferSize;
+		TArray<FVector2D> InputBuffer;
+		int CurrentInputIndex;
+
+		FVector2D GetSmoothedInput(FVector2D input) {
+			CurrentInputIndex = (CurrentInputIndex + 1) % InputBuffer.Num();
+			InputBuffer[CurrentInputIndex] = input;
+
+			FVector2D average = FVector2D::ZeroVector;
+			for (FVector2D sample : InputBuffer) {
+				average += sample;
+			}
+			average /= InputBuffer.Num();
+
+			return average;
+		}
+
+		FVector2D GetTieredSmoothedInput(FVector2D input,
+			float threshold1, float threshold2) {
+
+			float inputMagnitude = FMath::Sqrt(input.X * input.X +
+				input.Y * input.Y);
+
+			float directWeight = (inputMagnitude - threshold1) /
+				(threshold2 - threshold1);
+			directWeight = FMath::Clamp(directWeight, 0.f, 1.f);
+
+			return GetDirectInput(input * directWeight) +
+				GetSmoothedInput(input * (1.0 - directWeight));
+
+		}
+
+		FVector2D GetTightenedInput(FVector2D input, float threshold) {
+			float inputMagnitude = FMath::Sqrt(input.X * input.X +
+				input.Y * input.Y);
+			if (inputMagnitude < threshold) {
+				float inputScale = inputMagnitude / threshold;
+				return input * inputScale;
+			}
+
+			return input;
+		}
 	};
 
 	struct FControllerState
@@ -135,11 +210,29 @@ private:
 		float LastLargeValue;
 		float LastSmallValue;
 
+		/** IMU sensors processing */
+		// for calibration:
+		bool UseContinuousCalibration;
+		bool CueMotionReset;
+
 		/* Accelerometer */
 		FVector Accelerometer;
 
 		/* Gyroscope */
 		FVector Gyroscope;
+
+		/* Gamepad orientation */ 
+		FQuat Orientation;
+
+		/* Gamepad acceleration */
+		FVector Acceleration;
+
+		/* Gravity vector */
+		FVector Gravity;
+
+		/* Delta time */
+		double LastMeasurementTime;
+		double DeltaTime;
 
 		/* Gyroscope axises */
 		FGyroscopeSensor GyroscopeAxises;
@@ -155,6 +248,9 @@ private:
 
 	/** Controller states */
 	FControllerState ControllerStates[MAX_NUM_DS5W_CONTROLLERS];
+
+	/** Motion states */
+	GamepadMotion MotionStates[MAX_NUM_DS5W_CONTROLLERS];
 
 	/** Delay before sending a repeat message after a button was first pressed */
 	float InitialButtonRepeatDelay;
@@ -174,4 +270,27 @@ private:
     TSharedRef<FGenericApplicationMessageHandler>  MessageHandler;
     DS5W::DeviceContext con;
 
+	void reset_continuous_calibration(GamepadMotion& Motion) {
+		Motion.ResetContinuousCalibration();
+	}
+
+	void push_sensor_samples(GamepadMotion& Motion, const FControllerState& Controller) {
+		Motion.ProcessMotion(
+			Controller.Gyroscope.X, Controller.Gyroscope.Y, Controller.Gyroscope.Z,
+			Controller.Accelerometer.X, Controller.Accelerometer.Y, Controller.Accelerometer.Z,
+			Controller.DeltaTime
+		);
+	}
+
+	void get_calibrated_gyro(FControllerState& Controller, GamepadMotion& Motion)
+	{
+		Motion.GetCalibratedGyro(Controller.Gyroscope.X, Controller.Gyroscope.Y, Controller.Gyroscope.Z);
+	}
+
+	void get_motion_state(FControllerState& Controller, GamepadMotion& Motion)
+	{
+		Motion.GetProcessedAcceleration(Controller.Acceleration.X, Controller.Acceleration.Y, Controller.Acceleration.Z);
+		Motion.GetOrientation(Controller.Orientation.W, Controller.Orientation.X, Controller.Orientation.Y, Controller.Orientation.Z);
+		Motion.GetGravity(Controller.Gravity.X, Controller.Gravity.Y, Controller.Gravity.Z);
+	}
 };

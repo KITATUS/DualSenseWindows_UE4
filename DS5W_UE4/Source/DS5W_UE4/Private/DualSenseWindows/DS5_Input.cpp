@@ -53,10 +53,19 @@ void __DS5W::Input::evaluateHidInputBuffer(unsigned char* hidInBuffer, DS5W::DS5
 	}
 
 	// Copy accelerometer readings
-	memcpy(&ptrInputState->accelerometer, &hidInBuffer[0x0F], 2 * 3);
+	memcpy(&ptrInputState->accelerometer, &hidInBuffer[0x15], 2 * 3);
 
 	//TEMP: Copy gyro data (no processing currently done!)
-	memcpy(&ptrInputState->gyroscope, &hidInBuffer[0x15], 2 * 3);
+	memcpy(&ptrInputState->gyroscope, &hidInBuffer[0x0F], 2 * 3);
+
+	// convert to real units
+	ptrInputState->imuState.gyroX = (float)(ptrInputState->gyroscope.x) * (2000.0 / 32767.0);
+	ptrInputState->imuState.gyroY = (float)(ptrInputState->gyroscope.y) * (2000.0 / 32767.0);
+	ptrInputState->imuState.gyroZ = (float)(ptrInputState->gyroscope.z) * (2000.0 / 32767.0);
+
+	ptrInputState->imuState.accelX = (float)(ptrInputState->accelerometer.x) / 8192.0;
+	ptrInputState->imuState.accelY = (float)(ptrInputState->accelerometer.y) / 8192.0;
+	ptrInputState->imuState.accelZ = (float)(ptrInputState->accelerometer.z) / 8192.0;
 
 	// Evaluate touch state 1
 	UINT32 touchpad1Raw = *(UINT32*)(&hidInBuffer[0x20]);

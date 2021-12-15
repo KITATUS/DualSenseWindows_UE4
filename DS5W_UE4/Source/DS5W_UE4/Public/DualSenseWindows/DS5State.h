@@ -3,7 +3,7 @@
 	https://github.com/Ohjurot/DualSense-Windows
 
 	Contributors of this file:
-	11.2020 Ludwig Füchsl
+	11.2020 Ludwig FÃ¼chsl
 
 	Licensed under the MIT License (To be found in repository root directory)
 */
@@ -289,6 +289,15 @@ namespace DS5W {
 		LedBrightness brightness;
 	} PlayerLeds;
 
+	typedef struct _IMUState {
+		float accelX;
+		float accelY;
+		float accelZ;
+		float gyroX;
+		float gyroY;
+		float gyroZ;
+	} IMUState;
+
 	/// <summary>
 	/// Input state of the controler
 	/// </summary>
@@ -337,6 +346,8 @@ namespace DS5W {
 		/// Gyroscope  (Currently only raw values will be dispayed! Probably needs calibration (Will be done within the lib in the future))
 		/// </summary>
 		Vector3 gyroscope;
+
+		IMUState imuState;
 
 		/// <summary>
 		/// First touch point
